@@ -1,0 +1,94 @@
+/* Includes */
+#include "stm32f4xx.h"
+
+
+int display[] = {0x140, 0x310, 0x708, 0x740, 0x600, 0x0}; // display 7 seg
+int numDisplay = 0; // o numero de display que usamos 1 -> 4
+int letra1 = 0, letra2 = 1, letra3 = 2, letra4 = 3;
+
+
+void TIM1_UP_TIM10_IRQHandler(void){
+	numDisplay++;
+	if(numDisplay > 3) numDisplay = 0;
+
+
+	GPIOC->ODR &= 0X0;
+	switch(numDisplay){
+		case 3:
+			GPIOC->ODR =~0X01;
+			GPIOB->ODR = display[letra4];
+			break;
+
+		case 2:
+			GPIOC->ODR =~0X02;
+			GPIOB->ODR = display[letra3];
+			break;
+
+		case 1:
+			GPIOC->ODR =~0X04;
+			GPIOB->ODR = display[letra2];
+			break;
+
+		case 0:
+			GPIOC->ODR =~0X08;
+			GPIOB->ODR = display[letra1];
+			break;
+	}
+
+
+
+    TIM10->SR &=~0x01;
+}
+
+
+void TIM1_TRG_COM_TIM11_IRQHandler(void){
+
+	letra1++;
+	letra2++;
+	letra3++;
+	letra4++;
+
+	if(letra1 > 5) letra1 = 0;
+	if(letra2 > 5) letra2 = 0;
+	if(letra3 > 5) letra3 = 0;
+	if(letra4 > 5) letra4 = 0;
+
+
+    TIM11->SR &=~0x01;
+}
+
+
+
+int main(void)
+{
+	RCC->AHB1ENR =0x0087;
+
+	//configurar o timer 10
+	RCC->APB2ENR |=1<<17;//habilita o clock do timer 10
+	TIM10->PSC=99;
+	TIM10->ARR=111;
+	TIM10->CR1|=0x01;
+	TIM10->DIER|=0x01;    //habilita interrupçao do timer 10
+
+	NVIC_SetPriority(TIM1_UP_TIM10_IRQn, 4);
+	NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn);
+
+
+	RCC->APB2ENR |=1<<18;//habilita o clock do timer 11
+	TIM11->PSC=15999;
+	TIM11->ARR=999;		//timer 1 minuto
+	TIM11->CR1|=0x01;    //Ligando o timer11
+	TIM11->DIER|=0x01;    //habilita interrupçao do timer 10
+
+	NVIC_SetPriority(TIM1_TRG_COM_TIM11_IRQn, 5);//Priority 3
+	NVIC_EnableIRQ(TIM1_TRG_COM_TIM11_IRQn);//
+
+	GPIOB->MODER=0X151540; // 3, 4, 5, 6, 8, 9, 10 PARA O DISPLAY
+	GPIOC->MODER=0X55;// PARA CONTROLAR A MULTIPLEXAÇÃO
+
+
+  while (1)
+  {
+
+  }
+}
